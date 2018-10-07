@@ -15,6 +15,8 @@
 
 int fid; /* global variable set by the open() function */
 
+
+
 ssize_t read_fat_data(int fid, fat_dirent_t* in_file) {
 
 	lseek(fid, sizeof(boot_record_t), SEEK_CUR);
@@ -56,9 +58,18 @@ ssize_t read_fat_data(int fid, fat_dirent_t* in_file) {
 }
 
 
+int read_boot_record(int fid, boot_record_t* boot_record) {
+	if (read(fid, boot_record, sizeof(*boot_record)) < 0) {
+		printf("%s\n", strerror(errno));
+		return 1;
+	}
+	return 0;
+}
+
 int main(int argc, char *argv[])
 {
-	fat_dirent_t floppy_input_file;
+	boot_record_t boot_record;
+
 	if (argc != 2)
 	{
 		printf("Usage: %s <floppy_image>\n", argv[0]);
@@ -75,9 +86,31 @@ int main(int argc, char *argv[])
 	
 	/* See fat12.pdf for layout details */
 	
-	// Check if the received
+	read_boot_record(fid, &boot_record);
 
-	printf("%d", read_fat_data(fid, &floppy_input_file));
+	boot_record.bootjmp = { (uuint8_t)0xEB, (uuint8_t)0xEB, (uuint8_t)0x90};
+	boot_record.oem_id[8] = "MSWIN4.1";
+	boot_record.sector_size = 512;
+	boot_record.sectors_per_cluster = 1;
+	boot_record.reserved_sector_count = 1;
+	boot_record.number_of_fats = 2;
+	boot_record.number_of_dirents = 224;
+	boot_record.sector_count = 2880;
+	boot_record.media_type = 0xF8; // hard disk
+	boot_record.fat_size_sectors = 9;
+	boot_record.sectors_per_track = 18;
+	boot_record.nheads = 2;
+	boot_record.sectors_hidden = 0;
+	boot_record.sector_count_large = 0;
+
+	read_boot_record(fid, &boot_record);
+
+	printf("fat_size_sectors: %d\n", boot_record.fat_size_sectors);
+	printf("sectors_per_track: %d\n", boot_record.sectors_per_track);
+	printf("nheads: %d\n", boot_record.nheads);
+	printf("sectors_hidden: %d\n", boot_record.sectors_hidden);
+	printf("sector_count_large;: %d\n", boot_record.sector_count_large);
+	//printf("%d", read_fat_data(fid, &floppy_input_file));
 
 	// Step 1. Create floppy.img with the school solution. Read the values 
 	// from the boot sector of the floppy.img and initialize boot sector
