@@ -74,9 +74,31 @@ typedef struct {
     uint16_t    nheads;                 /* 26 Heads */
     uint32_t    sectors_hidden;         /* 28 number of hidden sectors */
     uint32_t    sector_count_large;     /* 32 big total sectors */ 	
+
+
+    // Values >= 36. By Ido Shamriz.
+    uint8_t		bootsector_drivenum;	/* 36 Operating system specific drive number */
+    uint8_t		bootsector_reserved;	/* Reserved and used by Windows NT. */
+    uint8_t		boot_signature;			/* Signature flag indicates that the following three fields are present */
+    uint32_t	volume_id;				/* Volume Serial Number */
+    uint8_t		volume_label[11];		/* Volume label */
+    uint8_t		filesystem_type[8];		/* FAT12 / FAT16 / FAT32 etc. Informational only */
+
 	
 } __attribute__ ((packed)) boot_record_t;
 
+
+/*
+ * FSInfo sector
+ */
+typedef struct fsinfo_sector {
+	uint32_t	struct_sig;				/* Signature that is more localized in the sector to the location of the fields that are used. */
+	uint32_t	free_count;				/* Contains the last known free cluster count on the volume */
+	uint32_t	next_free;				/* This is a hint for the FAT driver */
+	uint8_t		reserved2[12];				/* Reserved for future expansion */
+	uint32_t	trailsig;				/* Trail signature for fsinfo sector */
+
+} __attribute__ ((packed)) fsinfo_sector_t;
 
 #endif
 
