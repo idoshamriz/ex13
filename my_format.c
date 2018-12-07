@@ -1,3 +1,10 @@
+/*
+Student: Ido Shammriz (318435138)
+Maman 13
+Course 20594
+Semester 2019a
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,15 +18,19 @@
 
 #include "fat12.h"
 
+// Defining bit's and byte's locations and sizes
+#define FSINFO_BEGINNING_BYTE 484
+#define DEFAULT_SECTOR_SIZE 512
+#define FIRST_DEFAULT_SECTOR_STARTING_INDEX 1
+#define SECOND_DEFAULT_SECTOR_STARTING_INDEX 10
+#define DEFAULT_SECTOR_SIZE 8
+
+// Defining bit's and bytes' values
 #define OEM_ID_LENGTH 8
 #define VOLUME_LABEL "IDO_SHAMRIZ"
 #define FAT_TYPE "FAT12   "
 
-#define FSINFO_BEGINNING_BYTE 484
-
 int fid; /* global variable set by the open() function */
-
-#define DEFAULT_SECTOR_SIZE 512
 
 int fd_read(int sector_number, char *buffer) {
 	int dest, len;
@@ -111,23 +122,18 @@ int main2(int argc, char *argv[]) {
 int main(int argc, char *argv[])
 {
 	boot_record_t boot;
-	/*
 	if (argc != 2)
 	{
 		printf("Usage: %s <floppy_image>\n", argv[0]);
 		exit(1);
 	}
-	*/
 
-	// fid is file descriptor to floppy.img
-	if ( (fid = open ("school.txt",  O_RDWR|O_CREAT, 0777))  < 0 )
+	if ( (fid = open (argv[1],  O_RDWR|O_CREAT, 0777))  < 0 )
 	{
 		perror("Error: ");
 		return -1;
 	}
 	
-
-	/* See fat12.pdf for layout detail	s */
 	boot.bootjmp[0] = 0xEB;
 	boot.bootjmp[1] = 0x3C;
 	boot.bootjmp[2] = 0x90;
@@ -191,21 +197,18 @@ int main(int argc, char *argv[])
 	  // There There  are  3072  FAT  entries  in  each  FAT  table  (512  bytes  per  sector  *  9  sectors  =  4608
 	  //bytes. 4608 bytes / 1.5 bytes per FAT entry = 3072 FAT entries).
 	  // Only the first sector out of total 9 is reserved
-	  fd_write(1, reservedEntry);
+	  fd_write(FIRST_DEFAULT_SECTOR_STARTING_INDEX, reservedEntry);
 
-	  for (short i = 2; i <= 9; i++) {
+	  for (short i = FIRST_DEFAULT_SECTOR_STARTING_INDEX + 1; i <= FIRST_DEFAULT_SECTOR_STARTING_INDEX + DEFAULT_SECTOR_SIZE; i++) {
 		  fd_write(i, unusedEntry);
 	  }
 
 	  // Doing the same for the second fat entry
-	  fd_write(10, reservedEntry);
+	  fd_write(SECOND_DEFAULT_SECTOR_STARTING_INDEX, reservedEntry);
 
-	  for (short i = 11; i <= 18; i++) {
+	  for (short i = SECOND_DEFAULT_SECTOR_STARTING_INDEX + 1; i <= SECOND_DEFAULT_SECTOR_STARTING_INDEX + DEFAULT_SECTOR_SIZE; i++) {
 	  	  fd_write(i, unusedEntry);
 	  }
-
-
-
 
 	// Step 3. Set direntries as free according to the fat12.pdf.
 
@@ -216,7 +219,6 @@ int main(int argc, char *argv[])
 		restricting the total amount of files or directories that can be created therein. */
 
 	  // Creating buffer with the first value of fat_file.name marks it as empty
-
 
 	  char free_dirent = 0x0;
 	  char empty_dirent_buf[DEFAULT_SECTOR_SIZE] = {0x0};
