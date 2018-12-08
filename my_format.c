@@ -18,241 +18,245 @@ Semester 2019a
 
 #include "fat12.h"
 
+// Defining code constants
+#define EXPECTED_ARGC_VALUE			(2)
+#define INVALID_RETURN_CODE			(-1)
+#define OPEN_FILE_PERMISSIONS		(0644) //rw-r--r--
+
 // Defining bit's and byte's locations and sizes
 #define FSINFO_BEGINNING_BYTE 484
 #define DEFAULT_SECTOR_SIZE 512
 #define FIRST_DEFAULT_SECTOR_STARTING_INDEX 1
 #define SECOND_DEFAULT_SECTOR_STARTING_INDEX 10
-#define DEFAULT_SECTOR_SIZE 8
+
+
 
 // Defining bit's and bytes' values
-#define OEM_ID_LENGTH 8
-#define VOLUME_LABEL "IDO_SHAMRIZ"
-#define FAT_TYPE "FAT12   "
 
+
+/* Defining boot sector's values */
+
+//According to school solution and fat_paper.pdf. I chose one of the allowed, more common forms to initialize this value
+#define VAL_BOOT_JUMP 				{0XEB, 0x3C, 0x90}
+//The setting of this value will least likely create compatability issues (according to fat_paper.pfd) 
+#define VAL_OEM_NAME 				("MSWIN4.1") 
+#define VAL_SECTOR_SIZE 			(DEFAULT_SECTOR_SIZE)
+#define VAL_SECTORS_PER_CLUSTER		(1)
+#define VAL_RESERVED_SECTORS_COUNT	(1)
+#define VAL_NUMBER_OF_FATS			(2)
+#define VAL_NUMBER_OF_DIRENTS		(224)
+#define VAL_SECTOR_COUNT 			(2880)
+// Removable media, according to fat_paper.pfd
+#define VAL_MEDIA_TYPE				(0xF0)
+#define VAL_FAT_SIZE_SECTORS		(9)
+#define VAL_SECTORS_PER_TRACK		(18)
+#define VAL_NHEADS					(2)
+#define VAL_HIDDEN_SECTORS_COUNT	(0)
+#define VAL_SECTOR_COUNT_LARGE		(0)
+
+// FAT VALUES
+#define VAL_FIRST_FAT_SECTOR_INDEX	(1)
+#define VAL_FAT_SIZE 				(9)
+#define VAL_ZERO_VALUE				{ 0x0 }
+#define VAL_RESERVED_ENTRY	 		{0x00, 0xF0, 0xFF, 0xFF}
+
+// Extended FAT values
+#define VAL_DRIVE_NUMBER			(0) // 0x00 for floppy disks, according to fat_paper.pdf
+#define VAL_BOOTSECTOR_RESERVED		(0) // Should always be 0, according to fat_paper.pdf
+#define VAL_BOOT_SIGNATURE			(0x29) // Indicates that the following three fields in the boot sector are present, according to fat_paper.pdf
+#define VAL_VOLUME_LABEL 			("IDO_SHAMRIZ")
+#define VAL_FAT_TYPE 				("FAT12   ")
+
+// FSInfo struct values
+#define VAL_STRUCT_SIG 				(0x61417272)
+#define VAL_FREE_COUNT				(0xFFFFFFFF)
+#define VAL_NEXT_FREE				(0xFFFFFFFF)
+#define VAL_TRAIL_SIG				(0xAA55)
+
+// Dirent values
+#define VAL_ROOT_DIRECTORY_SIZE		(14)
+#define VAL_FREE_DIRENT 			(0xE5)
+
+// Globals
 int fid; /* global variable set by the open() function */
-
-int fd_read(int sector_number, char *buffer) {
-	int dest, len;
-	int bps = DEFAULT_SECTOR_SIZE;
-
-	dest = lseek(fid, sector_number * DEFAULT_SECTOR_SIZE, SEEK_SET);
-	if (dest != sector_number * bps){
-	/* Error handling */
-	}
-
-	len = read(fid, buffer, bps);
-	if (len != bps){
-		/* error handling here */
-	}
-
-	return len;
-}
 
 /* Writes to disk */
 int fd_write(int sector_number, char *buffer){
-	int dest, len;
-	int bps = DEFAULT_SECTOR_SIZE;
+	int dest = 0, len = 0;
 
-	dest = lseek(fid, sector_number * DEFAULT_SECTOR_SIZE, SEEK_SET);
-	if (dest != sector_number * bps){
+	dest = lseek(fid, sector_number * VAL_SECTOR_SIZE, SEEK_SET);
+	if (dest != sector_number * VAL_SECTOR_SIZE){
 		/* Error handling */
+		perror("Error: Couldn't seek cursor to the beginning of the file");
+		return INVALID_RETURN_CODE;
 	}
 
-	len = write(fid, buffer, bps);
+	len = write(fid, buffer, VAL_SECTOR_SIZE);
 
-	if (len != bps){
-		/* error handling here */
+	if (len != VAL_SECTOR_SIZE){
+		/* Error handling */
 		perror("Error: Couldn't write all data to fat12 disk");
-		return -1;
+		return INVALID_RETURN_CODE;
 	}
 	return len;
 }
 
-void setup_boot_oemid(boot_record_t* boot_sector) {
-   for (short int i = 0; i < sizeof(boot_sector->oem_id); i++) {
-		   boot_sector->oem_id[i] = 0;
-   }
-}
-
-int main2(int argc, char *argv[]) {
-	boot_record_t boot;
-
-	if (argc != 2)
-	{
-		printf("Usage: %s <floppy_image>\n", argv[0]);
-		exit(1);
-	}
-
-	// fid is file descriptor to floppy.img
-	if ( (fid = open (argv[1],  O_RDWR|O_CREAT, 0777))  < 0 )
-	{
-		perror("Error: ");
-		return -1;
-	}
-
-	boot_record_t solboot;
-	read(fid, &solboot, sizeof(solboot));
-
-	printf("%0x:%0x:%0x\n", solboot.bootjmp[0],solboot.bootjmp[1],solboot.bootjmp[2]);
-
-	for (int i = 0; i <= sizeof(solboot.oem_id); i++) {
-		printf("%d:", solboot.oem_id[i]);
-	}
-	printf("\n");
-
-	printf("%s\n", solboot.oem_id);
-	printf("%d\n", solboot.sector_size);
-	printf("%d\n", solboot.sectors_per_cluster);
-	printf("%d\n", solboot.reserved_sector_count);
-	printf("%d\n", solboot.number_of_fats);
-	printf("%d\n", solboot.number_of_dirents);
-	printf("%d\n", solboot.sector_count);
-	printf("%d\n", solboot.media_type); // Removable medi)a
-	printf("%d\n", solboot.fat_size_sectors);
-	printf("%d\n", solboot.sectors_per_track);
-	printf("%d\n", solboot.nheads);
-	printf("%d\n", solboot.sectors_hidden);
-	printf("%d\n", solboot.sector_count_large);
-
-	return 0;
-}
-
-
 int main(int argc, char *argv[])
 {
-	boot_record_t boot;
-	if (argc != 2)
+	boot_record_t	boot 	= 	VAL_ZERO_VALUE;
+	char boot_jump_value[] 	= 	VAL_BOOT_JUMP;
+	char sector_to_write[VAL_SECTOR_SIZE] = VAL_ZERO_VALUE;
+	char unusedEntry[VAL_SECTOR_SIZE] = VAL_ZERO_VALUE;
+
+	int sector_index = 1, sector_counter = VAL_FIRST_FAT_SECTOR_INDEX, fat_counter = 1;
+
+	if (EXPECTED_ARGC_VALUE != argc)
 	{
 		printf("Usage: %s <floppy_image>\n", argv[0]);
-		exit(1);
+		exit(INVALID_RETURN_CODE);
 	}
 
-	if ( (fid = open (argv[1],  O_RDWR|O_CREAT, 0777))  < 0 )
+	if ( (fid = open (argv[1],  O_RDWR|O_CREAT, OPEN_FILE_PERMISSIONS))  < 0 )
 	{
 		perror("Error: ");
-		return -1;
+		return INVALID_RETURN_CODE;
 	}
-	
-	boot.bootjmp[0] = 0xEB;
-	boot.bootjmp[1] = 0x3C;
-	boot.bootjmp[2] = 0x90;
-	setup_boot_oemid(&boot);
-	boot.sector_size = DEFAULT_SECTOR_SIZE;
-	boot.sectors_per_cluster = 1;
-	boot.reserved_sector_count = 1;
-	boot.number_of_fats = 2;
-	boot.number_of_dirents = 224;
-	boot.sector_count = 2880;
-	boot.media_type = 0xF0; // Removable media
-	boot.fat_size_sectors = 9;
-	boot.sectors_per_track = 18;
-	boot.nheads = 2;
-	boot.sectors_hidden = 0;
-	boot.sector_count_large = 0;
-	boot.bootsector_drivenum = 0;
-	boot.bootsector_reserved = 0;
-	boot.boot_signature = 0x29;
+
+	memcpy(boot.bootjmp, boot_jump_value, sizeof(boot.bootjmp));
+	memcpy(boot.oem_id, VAL_OEM_NAME, sizeof(boot.oem_id));
+
+	/*** Setting up the boot sector values according to school solution and the example code ***/
+	boot.sector_size = VAL_SECTOR_SIZE;
+	boot.sectors_per_cluster = VAL_SECTORS_PER_CLUSTER;
+	boot.reserved_sector_count = VAL_RESERVED_SECTORS_COUNT;
+	boot.number_of_fats = VAL_NUMBER_OF_FATS;
+	boot.number_of_dirents = VAL_NUMBER_OF_DIRENTS;
+	boot.sector_count = VAL_SECTOR_COUNT;
+	boot.media_type = VAL_MEDIA_TYPE;
+	boot.fat_size_sectors = VAL_FAT_SIZE_SECTORS;
+	boot.sectors_per_track = VAL_SECTORS_PER_TRACK;
+	boot.nheads = VAL_NHEADS;
+	boot.sectors_hidden = VAL_HIDDEN_SECTORS_COUNT;
+	boot.sector_count_large = VAL_SECTOR_COUNT_LARGE;
+
+	// Setting up the extended values, according to fat_paper.pdf
+	boot.bootsector_drivenum = VAL_DRIVE_NUMBER;
+	boot.bootsector_reserved = VAL_BOOTSECTOR_RESERVED;
+	boot.boot_signature = VAL_BOOT_SIGNATURE;
+
+	// As documented in fat_paper.pdf, the ID is usually generated by combining the current date and time
 	boot.volume_id = (int)time(NULL);
-	memcpy(boot.volume_label, VOLUME_LABEL, sizeof(boot.volume_label));
-	memcpy(boot.filesystem_type, FAT_TYPE, sizeof(boot.filesystem_type));
+	memcpy(boot.volume_label, VAL_VOLUME_LABEL, sizeof(boot.volume_label));
+	memcpy(boot.filesystem_type, VAL_FAT_TYPE, sizeof(boot.filesystem_type));
 
-	printf("%x\n", boot.volume_id);
+	/*** Creating the FAT table.
+	We do this by Zeroing FAT1 and FAT2 tables according to the fat12.pdf.
+	First, write the boot sector to the file (To the first sector) Writing only the size of the sector size ***/
 
+	// Writing the boot sector to the file
+	memset(sector_to_write, 0, sizeof(sector_to_write));
+	memcpy(sector_to_write, &boot, sizeof(boot));
 
-	// Step 1. Create floppy.img with the school solution. Read the values 
-	// from the boot sector of the floppy.img and initialize boot sector
-	// with those values. If you read bootsector of the floppy.img correctly,
-	// the values will be:
+	if (sizeof(sector_to_write) !=  fd_write(0, sector_to_write))
+	{
+		fprintf(stderr, "%s\n", "Failed to write boot sector");
+		close(fid);
+		return INVALID_RETURN_CODE;
+	}
 
-	// Step 2. Zero FAT1 and FAT2 tables according to the fat12.pdf.
+	/*** Setting up and write FSInfo sector, as in page 21 of fat_paper.pdf ***/
+	fsinfo_sector_t fsinfo;
+	fsinfo.struct_sig = VAL_STRUCT_SIG;
+	fsinfo.free_count = VAL_FREE_COUNT;
+	fsinfo.next_free = VAL_NEXT_FREE;
+	memset(fsinfo.reserved2, 0, sizeof(fsinfo.reserved2));
+	fsinfo.trailsig = VAL_TRAIL_SIG;
 
-	  // First, write the boot sector to the file (To the first sector)
-	  // Writing only the size of the sector size
+	memcpy(sector_to_write + FSINFO_BEGINNING_BYTE, &fsinfo, sizeof(fsinfo));
 
-	  char trimmed_boot_buffer[DEFAULT_SECTOR_SIZE] = {0x0};
+	/*** Moving systematically according to the data we are writing using indexes **
+	*/
 
-	  memcpy(trimmed_boot_buffer, &boot, sizeof(boot));
-
-	  // Setting up FSInfo sector
-	  fsinfo_sector_t fsinfo;
-	  fsinfo.struct_sig = 0x61417272;
-	  fsinfo.free_count = 0xFFFFFFFF;
-	  fsinfo.next_free = 0xFFFFFFFF;
-	  memset(fsinfo.reserved2, 0, sizeof(fsinfo.reserved2));
-	  fsinfo.trailsig = 0xAA55;
-
-	  memcpy(trimmed_boot_buffer + FSINFO_BEGINNING_BYTE, &fsinfo, sizeof(fsinfo));
-
-	  fd_write(0, trimmed_boot_buffer);
-
-	  // Second, We will zero the values of the fat table.
-	  // A 12-bit FAT entry Could have different values according to the cluster's usage,
-	  // Whereas 0x000 is unused cluster, and 0xFF0 - 0xFF6 is a reserved cluster (like FAT entries 1 and 2)
-
-	  char reservedEntry[DEFAULT_SECTOR_SIZE] = {0xF0, 0xFF, 0xFF};
-	  char unusedEntry[DEFAULT_SECTOR_SIZE] = {0x0};
-
-
-	  // There There  are  3072  FAT  entries  in  each  FAT  table  (512  bytes  per  sector  *  9  sectors  =  4608
-	  //bytes. 4608 bytes / 1.5 bytes per FAT entry = 3072 FAT entries).
-	  // Only the first sector out of total 9 is reserved
-	  fd_write(FIRST_DEFAULT_SECTOR_STARTING_INDEX, reservedEntry);
-
-	  for (short i = FIRST_DEFAULT_SECTOR_STARTING_INDEX + 1; i <= FIRST_DEFAULT_SECTOR_STARTING_INDEX + DEFAULT_SECTOR_SIZE; i++) {
-		  fd_write(i, unusedEntry);
-	  }
-
-	  // Doing the same for the second fat entry
-	  fd_write(SECOND_DEFAULT_SECTOR_STARTING_INDEX, reservedEntry);
-
-	  for (short i = SECOND_DEFAULT_SECTOR_STARTING_INDEX + 1; i <= SECOND_DEFAULT_SECTOR_STARTING_INDEX + DEFAULT_SECTOR_SIZE; i++) {
-	  	  fd_write(i, unusedEntry);
-	  }
-
-	// Step 3. Set direntries as free according to the fat12.pdf.
-
-	  /*The  Root  Directory
-		is  the  primary  directory  of  the  disk.
-		Unlike  other  directories located in the data area of the disk,
-		the root directory has a finite size (14 sectors * 16 directory entries per sector = 224 possible entries)
-		restricting the total amount of files or directories that can be created therein. */
-
-	  // Creating buffer with the first value of fat_file.name marks it as empty
-
-	  char free_dirent = 0x0;
-	  char empty_dirent_buf[DEFAULT_SECTOR_SIZE] = {0x0};
-	  empty_dirent_buf[0] = free_dirent;
-
-
-	  // Starting from sector 19, 14 sectors is 19 - 32
-	  for (short i = 19; i <= 32; i++) {
-		  fd_write(i, empty_dirent_buf);
-	  }
+	/**
+	There  are  3072  FAT  entries  in  each  FAT  table  (512  bytes  per  sector  *  9  sectors  =  4608 bytes. 4608 bytes / 1.5 bytes per FAT entry = 3072 FAT entries).
+	Only the first sector out of total 9 is reserved
 	
-	// Step 4. Handle data block (e.g you can zero them or just leave 
-	// untouched. What are the pros/cons?)
+	Here we are starting by Writing FAT1 and FAT2 to the file
+	***/
+	memset(sector_to_write, 0, sizeof(sector_to_write));
 
-	  // Zeroing the other sectors
-	  for (short i = 33; i < boot.sector_count; i++) {
-		  fd_write(i, unusedEntry);
-	  }
-	
+	for (; fat_counter <= boot.number_of_fats; fat_counter++)
+	{
+		// For each FAT entry, we do
+		for (; sector_index <= sector_counter + VAL_FAT_SIZE; sector_index++)
+		{
+			if (sizeof(sector_to_write) != fd_write(sector_index, sector_to_write))
+			{
+				fprintf(stderr, "Failed to write FAT %d's sector.\n", sector_index);
+                close(fid);
+                return INVALID_RETURN_CODE;
+			}
+			memset(sector_to_write, 0, sizeof(sector_to_write));
+		}
+	}
 
-	// For steps 2-3, you can also read the sectors from the image that was 
-	// generated by the school solution if not sure what should be the values.
-	
-	
+	// Next loop starts where the current one finishes
+	sector_counter = sector_index;
+
+	/*The  Root  Directory is  the  primary  directory  of  the  disk.
+	Unlike  other  directories located in the data area of the disk,
+	the root directory has a finite size (14 sectors * 16 directory entries per sector = 224 possible entries)
+	restricting the total amount of files or directories that can be created therein. 
+	Here it is being created
+	*/
+	memset(sector_to_write, 0, sizeof(sector_to_write));
+
+	for (; sector_index < sector_counter + VAL_ROOT_DIRECTORY_SIZE; sector_index++)
+	{
+		if (sizeof(sector_to_write) != fd_write(sector_index, sector_to_write))
+		{
+			fprintf(stderr, "Failed to write root directory sector.\n");
+            close(fid);
+            return INVALID_RETURN_CODE;
+		}
+	}
+
+	/*** Step 3. Set direntries as free according to the fat12.pdf.
+	Here we are writing free directory entries ***/
+	int beginning_of_dirent = sector_index;
+	for (; sector_index <= beginning_of_dirent + VAL_ROOT_DIRECTORY_SIZE; sector_index++)
+	{
+		if (sizeof(sector_to_write) != fd_write(sector_index, sector_to_write))
+        {
+            fprintf(stderr, "Failed to write directory entry sector.\n");
+            close(fid);
+            return INVALID_RETURN_CODE;
+        }
+	}
+
+	/*** Lastly - Handling the data block ***/ 
+
+	// Zeroing the other sectors
+	for (; sector_index < boot.sector_count; sector_index++) {
+		fd_write(sector_index, unusedEntry);
+	}
+
+	if (sizeof(sector_to_write) !=  fd_write(FSINFO_BEGINNING_BYTE, sector_to_write))
+	{
+		fprintf(stderr, "%s\n", "Failed to FSInfo sector");
+		close(fid);
+		return INVALID_RETURN_CODE;
+	}
+
 	close(fid);
 
 
 	// if successful, print file system's values
-	  printf("sector_size: %d\n", boot.sector_size);
-	  printf("sectors_per_cluster: %d\n", boot.sectors_per_cluster);
-	  printf("reserved_sector_count: %d\n", boot.reserved_sector_count);
-	  printf("number_of_fats: %d\n", boot.number_of_fats);
-	  printf("number_of_dirents: %d\n", boot.number_of_dirents);
-	  printf("sector_count: %d\n", boot.sector_count);
-	  return 0;
+	printf("sector_size: %d\n", boot.sector_size);
+	printf("sectors_per_cluster: %d\n", boot.sectors_per_cluster);
+	printf("reserved_sector_count: %d\n", boot.reserved_sector_count);
+	printf("number_of_fats: %d\n", boot.number_of_fats);
+	printf("number_of_dirents: %d\n", boot.number_of_dirents);
+	printf("sector_count: %d\n", boot.sector_count);
+	return 0;
 }
-
